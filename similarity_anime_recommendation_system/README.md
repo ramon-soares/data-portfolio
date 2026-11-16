@@ -1,58 +1,118 @@
-# Introdução
+# Recomendação de animes por similaridade
 
-O sistema se baseia no coeficiente de Jaccard para o cálculo de similaridade que é realizado através dos gêneros de cada anime. Tal medida de proximidade pode ser usada para encontrar a similaridade entre dois vetores binários assimétricos ou para encontrar a similaridade entre dois conjuntos.
+Aplicação interativa que recomenda animes com base nas características dos títulos selecionados pelo usuário. O sistema combina **similaridade de Jaccard** entre atributos binários com uma **média ponderada pelas notas individuais**, gerando um ranking de recomendações em Streamlit.
 
-Neste sistema, para chegar à conclusão de quais animes irão ser recomendados para o usuário, primeiro é utilizado o coeficiente de Jaccard entre cada título da base de dados e cada título escolhido pelo usuário. Então para cada título da base, é feito o cálculo de similaridade com cada anime que o usuário especificou, seguido do cálculo de uma média ponderada que considera como pesos as notas dadas pelo usuário para cada anime. O resultado é a similaridade em que um anime da base possui com TODA a base passada pelo usuário, ou seja, uma relação de 1 para todos.
+[Voltar ao portfólio](../README.md)
 
-O cálculo é feito para cada anime da base de dados e o resultado é mostrado inicialmente de maneira com que os títulos mais similares apareçam primeiro, e a quantidade a ser mostrada pode ser editada pelo usuário, sendo possível visualizar mais ou menos títulos de acordo com sua necessidade.
+![Imagem utilizada na tela inicial da aplicação](img/home_screen.jpg)
 
-# Como a similaridade é calculada?
+## Objetivo
 
-O sistema em questão utiliza os gêneros de cada anime como critério para o cálculo de similaridade. São usados vetores binários para o cálculo. Cada vetor representa todos os gêneros existentes (de acordo com a base de dados usada, que possui como fonte o site https://myanimelist.net). Todos os vetores possuem o mesmo tamanho e se comportam da seguinte forma: se os gêneros disponíveis são aventura, comédia e romance, para representar um título que possui somente os gêneros aventura e romance, o vetor seria (1, 0, 1); já para um título que é somente de comédia, o vetor seria (0, 1, 0), ou seja, se o título possui um determinado gênero, ele possui valor 1 no vetor, caso contrário possui o valor 0.
+Facilitar a descoberta de títulos a partir de preferências explícitas: o usuário seleciona animes que conhece, atribui notas e recebe sugestões com características semelhantes. A abordagem é de recomendação baseada em conteúdo, usando gêneros, temas e classificações presentes na base.
 
-O cálculo é realizado da seguinte forma, considerando um objeto _i_ e um objeto _j_:
+O projeto reúne coleta de dados, preparação de atributos, cálculo de similaridade e apresentação dos resultados em uma aplicação web.
 
-    a = o número de atributos que são iguais a 1 para ambos os objetos; 
-    b = o número de atributos que são iguais a 0 para o objeto i, mas iguais a 1 para o objeto j;
-    c = o número de atributos que são iguais a 1 para o objeto i, mas iguais a 0 para o objeto j.
+## Dados
 
-Então, a similaridade de Jaccard para esses atributos é calculada pela seguinte equação:
+Os dados foram coletados do [MyAnimeList](https://myanimelist.net) com o script [get_animes_data.py](get_animes_data.py). Os CSVs necessários para utilizar a aplicação já estão incluídos no repositório.
 
-$$J(i, j) = \frac{a}{a + b + c}$$
+| Arquivo | Conteúdo |
+| --- | --- |
+| [csv/id_animes.csv](csv/id_animes.csv) | Identificadores coletados para consulta das páginas individuais. |
+| [csv/info_animes.csv](csv/info_animes.csv) | 4.150 registros com identificador, título, atributos e nota geral. |
+| [csv/database_animes.csv](csv/database_animes.csv) | Matriz processada com 4.148 títulos, três colunas de identificação e nota, e 73 atributos binários. |
+| [csv/output.csv](csv/output.csv) | Arquivo de resultados, sobrescrito a cada cálculo de similaridade. |
 
-Dessa forma, considerando os vetores:
+O pré-processamento remove registros com valores ausentes e transforma os atributos em indicadores de presença ou ausência. A nota geral da base é exibida ao usuário e utilizada como segundo critério de ordenação; as notas informadas pelo usuário ponderam o cálculo da recomendação.
 
-    V1 = (0, 1, 0, 0, 0, 1, 0, 0, 1)
-    V2 = (0, 0, 1, 0, 0, 0, 0, 0, 1)
+## Como a recomendação funciona
 
-A similaridade é calculada da seguinte forma:
+1. O usuário pesquisa títulos, adiciona seus IDs à seleção e atribui notas de 0 a 10.
+2. Cada título é representado por um vetor binário de atributos: `1` indica presença e `0`, ausência.
+3. Para cada candidato, o sistema calcula a similaridade de Jaccard em relação a cada título selecionado.
+4. As similaridades são combinadas por uma média ponderada pelas notas do usuário.
+5. Os títulos já selecionados são excluídos dos candidatos. O ranking é ordenado pela similaridade ponderada e, em seguida, pela nota geral, ambas em ordem decrescente.
 
-$$J(V1, V2) = \frac{a}{a + b + c} = \frac{1}{1 + 1 + 2} = 0.25$$
+### Similaridade de Jaccard
 
-Desse modo, considerando um objeto _x_ da base de dados, três objetos _a_, _b_ e _c_ e as notas _n1_, _n2_ e _n3_ (relacionados aos objetos _a_, _b_ e _c_ respectivamente) dos títulos passados pelo usuário, o cálculo final da similaridade entre o objeto _x_ e base do usuário (_y_), utilizando a média ponderada, dá-se por:
+Para os conjuntos de atributos de dois títulos, a similaridade é a razão entre a quantidade de atributos em comum e a quantidade de atributos presentes em pelo menos um deles:
 
-$$ Sim(x, y) = \frac{J(x, a) * n1 + J(x, b) * n2 + J(x, c) * n3}{n1 + n2 + n3} $$
+$$
+J(A, B) = \frac{|A \cap B|}{|A \cup B|}
+$$
 
-# Base de dados
+Por exemplo, um título com `{Aventura, Romance}` e outro com `{Aventura, Comédia}` têm similaridade de `1/3`. A ausência conjunta de um atributo não aumenta a similaridade.
 
-A base de dados foi construída a partir de um _web scraping_ do site https://myanimelist.net. Uma nova base de dados pode ser construída através do arquivo **get_animes_data.py**, que consiste em um script Python com uma classe que possui os métodos necessários para o _web scraping_.
+### Combinação das preferências
 
-Primeiramente é necessário pegar os _ids_ dos títulos, e a melhor forma que foi considerada para fazer isto é através da página de _Top Anime_, em que os títulos estão ordenados através da nota geral, onde são disponibilizados 50 títulos por página. O método para a _request_ dos _ids_ é o **get_animes_id**.
+Para um candidato $x$, os títulos selecionados $u_1, \ldots, u_k$ e suas notas $n_1, \ldots, n_k$:
 
-Após isso, é possível entrar na página específica de cada título pelo _id_ e salvar vários dados interessantes. No caso desse sistema, as informações mais relevantes foram os gêneros de cada anime (utilizados para o cálculo de similaridade) e a nota geral de cada um (apenas para uma visualização do usuário e uma ordenação no resultado final). O método para a _request_ das informações individuais é **get_animes_info**.
+$$
+S(x) = \frac{\sum_{i=1}^{k} J(x, u_i)\,n_i}{\sum_{i=1}^{k} n_i}
+$$
 
-Por fim, é necessário que haja um pré-processamento para transformar os gêneros em vetores binários, e isto é feito através do método **database_preprocessing**, que considera o valor 1 para o gênero existente determinado anime e 0 para o gênero ausente naquele anime.
+Uma nota maior dá mais peso às características daquele título. O código arredonda o resultado para duas casas decimais antes de ordenar o ranking.
 
-Após esses processos, a base de dados está pronta para que sejam realizados os cálculos de similaridade.
+## Funcionalidades
 
-# Instalação de bibliotecas e uso do sistema
+- Pesquisa de títulos no catálogo.
+- Inclusão e remoção de títulos por ID, com notas individuais.
+- Cálculo de similaridade a partir da seleção do usuário.
+- Exibição do título, da nota geral e da similaridade ponderada.
+- Ajuste da quantidade exibida, de 1 a 100 recomendações.
+- Exportação automática do ranking para CSV.
 
-Todas as bibliotecas que são necessárias para a utilização do sistema estão no arquivo **requirements.txt**, e a instalação delas pode ser feita através do terminal com o seguinte comando:
+**Ferramentas:** Python, Pandas, NumPy, Streamlit, Requests, Beautiful Soup e Pillow.
 
-    pip install -r requirements.txt
+## Como executar
 
-Após a instalação das bibliotecas, o script pode ser executado com o seguinte comando no terminal a partir do diretório que se encontra o arquivo **run.py**:
+O ambiente original utiliza Python 3.10, e o [requirements.txt](requirements.txt) fixa as versões das bibliotecas. Para reproduzir essa configuração, utilize um interpretador Python 3.10 e execute os comandos abaixo a partir da raiz do repositório:
 
-    streamlit run run.py
+```powershell
+cd similarity_anime_recommendation_system
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m streamlit run run.py
+```
 
-Uma janela web abrirá e o usuário poderá fazer o uso do sistema.
+O comando `python` deve apontar para a versão escolhida. Mantenha o diretório de trabalho nesta pasta: os caminhos em `constants.py` são relativos a ela. A atualização das dependências para versões diferentes das fixadas exige uma verificação de compatibilidade.
+
+Na aplicação:
+
+1. Clique em **Iniciar** e pesquise um título.
+2. Informe seu ID, atribua uma nota e clique em **Adicionar**.
+3. Repita para outros títulos e clique em **Calcular similaridade**.
+4. Ajuste a quantidade de resultados exibidos.
+
+Utilize pelo menos um título presente na matriz processada e uma soma de notas maior que zero, pois essa soma é o denominador da média ponderada.
+
+## Coleta e preparação da base
+
+A classe `ScrapingAnimes`, em [get_animes_data.py](get_animes_data.py), organiza o processo em três métodos:
+
+| Método | Responsabilidade |
+| --- | --- |
+| `get_animes_id()` | Coletar identificadores nas páginas do ranking de animes de TV. |
+| `get_animes_info()` | Consultar as páginas individuais e extrair título, atributos e nota geral. |
+| `database_preprocessing()` | Remover registros incompletos e gerar a matriz binária. |
+
+Esses métodos gravam os CSVs correspondentes e dependem da estrutura das páginas no momento da coleta. A aplicação pode ser utilizada com os arquivos existentes, sem executar novamente a coleta.
+
+## Estrutura da implementação
+
+| Arquivo | Responsabilidade |
+| --- | --- |
+| [run.py](run.py) | Carregar os dados e iniciar a aplicação. |
+| [interface.py](interface.py) | Gerenciar a interface e a seleção do usuário. |
+| [processing.py](processing.py) | Preparar a exibição, calcular Jaccard e gerar o ranking. |
+| [get_animes_data.py](get_animes_data.py) | Implementar a coleta e o pré-processamento da base. |
+| [constants.py](constants.py) | Centralizar os caminhos dos arquivos. |
+| [requirements.txt](requirements.txt) | Registrar as versões das dependências. |
+
+## Limitações e próximos passos
+
+O sistema considera apenas os atributos binários disponíveis; ele não incorpora sinopses, comportamento de outros usuários ou contexto de consumo. O ranking não foi avaliado com métricas de relevância ou testes com usuários.
+
+A lista exibida para seleção contém dois registros a mais que a matriz processada. Seleções ausentes dessa matriz, seleções vazias ou notas com soma zero podem resultar em uma tabela vazia, pois a interface trata falhas de cálculo sem detalhar a causa.
+
+Como continuidade, seria possível alinhar o catálogo de seleção à matriz processada, melhorar as validações e mensagens, avaliar a qualidade das recomendações e otimizar o cálculo de similaridade para bases maiores.
