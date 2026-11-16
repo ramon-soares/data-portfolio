@@ -37,7 +37,7 @@ Os projetos têm finalidade educacional e de portfólio. Os resultados descrevem
 3. Para executar localmente, siga as instruções específicas de cada pasta. Os caminhos de leitura dos dados são relativos ao diretório do projeto.
 
 ```text
-Portfolio-Data-Science/
+data-portfolio/
 ├── README.md
 ├── superstore_data_analysis/
 │   ├── README.md
